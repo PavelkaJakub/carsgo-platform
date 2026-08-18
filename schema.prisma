@@ -1,0 +1,273 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+
+enum UserRole { USER PRIVATE_SELLER COMPANY_USER COMPANY_ADMIN ADMIN }
+enum CompanyType { DEALER USED_CAR_DEALER LEASING FINANCE SERVICE INSURANCE }
+enum VehicleStatus { DRAFT PENDING_REVIEW ACTIVE REJECTED RESERVED SOLD INACTIVE }
+enum LeadType { VEHICLE LEASING FINANCING BUYOUT INSURANCE }
+
+model User {
+  id String @id @default(cuid())
+  email String @unique
+  passwordHash String?
+  firstName String?
+  lastName String?
+  phone String?
+  role UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  emailVerifiedAt DateTime?
+  companyLinks CompanyUser[]
+  auditLogs AuditLog[]
+  favorites Favorite[]
+  promotions PromotionOrder[]
+  savedSearches SavedSearch[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+  consents ConsentRecord[]
+}
+
+model Company {
+  id String @id @default(cuid())
+  name String
+  ico String? @unique
+  type CompanyType
+  website String?
+  email String?
+  phone String?
+  city String?
+  region String?
+  verified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users CompanyUser[]
+  vehicles Vehicle[]
+  importFeeds ImportFeed[]
+  importLogs ImportLog[]
+  leads Lead[]
+  favorites Favorite[]
+}
+
+model CompanyUser {
+  id String @id @default(cuid())
+  userId String
+  companyId String
+  role String @default("member")
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  @@unique([userId,companyId])
+}
+
+model Vehicle {
+  id String @id @default(cuid())
+  carsgoId String @unique @default(cuid())
+  companyId String?
+  externalId String?
+  vin String?
+  brand String
+  model String
+  trim String?
+  bodyType String?
+  fuelType String?
+  transmission String?
+  powerKw Int?
+  mileage Int?
+  year Int?
+  price Int
+  currency String @default("CZK")
+  description String?
+  featuredUntil DateTime?
+  moderationNote String?
+  city String?
+  region String?
+  status VehicleStatus @default(DRAFT)
+  sourceType String @default("MANUAL")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company Company? @relation(fields:[companyId],references:[id])
+  priceHistory VehiclePriceHistory[]
+  images VehicleImage[]
+  leads Lead[]
+  favorites Favorite[]
+  @@index([brand,model])
+  @@index([price])
+  @@index([status])
+  @@unique([companyId,externalId])
+}
+
+model VehicleImage {
+  id String @id @default(cuid())
+  vehicleId String
+  url String
+  position Int @default(0)
+  isPrimary Boolean @default(false)
+  vehicle Vehicle @relation(fields:[vehicleId],references:[id],onDelete:Cascade)
+  @@index([vehicleId,position])
+}
+
+model VehiclePriceHistory {
+  id String @id @default(cuid())
+  vehicleId String
+  oldPrice Int?
+  newPrice Int
+  source String?
+  changedAt DateTime @default(now())
+  vehicle Vehicle @relation(fields:[vehicleId],references:[id],onDelete:Cascade)
+  @@index([vehicleId,changedAt])
+}
+
+model Lead {
+  id String @id @default(cuid())
+  vehicleId String?
+  companyId String?
+  type LeadType
+  status String @default("NEW")
+  name String
+  email String
+  phone String?
+  message String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  vehicle Vehicle? @relation(fields:[vehicleId],references:[id])
+  company Company? @relation(fields:[companyId],references:[id])
+  @@index([companyId,createdAt])
+  @@index([status])
+}
+
+model ImportFeed {
+  id String @id @default(cuid())
+  companyId String
+  type String
+  url String?
+  status String @default("ACTIVE")
+  lastRunAt DateTime?
+  lastSuccessAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  logs ImportLog[]
+}
+
+model ImportLog {
+  id String @id @default(cuid())
+  companyId String
+  importFeedId String?
+  status String
+  vehiclesCreated Int @default(0)
+  vehiclesUpdated Int @default(0)
+  vehiclesDeactivated Int @default(0)
+  errorsCount Int @default(0)
+  message String?
+  createdAt DateTime @default(now())
+  company Company @relation(fields:[companyId],references:[id],onDelete:Cascade)
+  feed ImportFeed? @relation(fields:[importFeedId],references:[id],onDelete:SetNull)
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  userId String?
+  action String
+  entityType String
+  entityId String?
+  metadata Json?
+  createdAt DateTime @default(now())
+  user User? @relation(fields:[userId],references:[id],onDelete:SetNull)
+  @@index([entityType,createdAt])
+}
+
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  vehicleId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+  vehicle   Vehicle  @relation(fields:[vehicleId],references:[id],onDelete:Cascade)
+  @@unique([userId,vehicleId])
+}
+
+model SavedSearch {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  query     String?
+  filters   Json
+  createdAt DateTime @default(now())
+  user      User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRIVATE_PLUS
+  START
+  BUSINESS
+  ENTERPRISE
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String?
+  companyId String?
+  plan      SubscriptionPlan @default(FREE)
+  status    String   @default("ACTIVE")
+  startsAt  DateTime @default(now())
+  endsAt    DateTime?
+  createdAt DateTime @default(now())
+}
+
+
+model ConsentRecord {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String?
+  type      String
+  version   String
+  granted   Boolean
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields:[userId],references:[id],onDelete:SetNull)
+  @@index([type,createdAt])
+}
+
+model PaymentEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  providerId  String   @unique
+  eventType   String
+  payload     Json
+  processedAt DateTime @default(now())
+}
+
+model PromotionOrder {
+  id          String   @id @default(cuid())
+  vehicleId   String
+  userId      String?
+  type        String
+  amount      Int
+  currency    String   @default("CZK")
+  status      String   @default("PENDING")
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime @default(now())
+  vehicle     Vehicle  @relation(fields:[vehicleId],references:[id],onDelete:Cascade)
+}

@@ -1,0 +1,3 @@
+import Nav from "@/components/Nav";import {requirePartner} from "@/lib/auth";import {prisma} from "@/lib/prisma";import {redirect} from "next/navigation";
+export default async function L(){let s;try{s=await requirePartner()}catch{redirect("/login")}if(!s.companyId)redirect("/login");const leads=await prisma.lead.findMany({where:{companyId:s.companyId},include:{vehicle:true},orderBy:{createdAt:"desc"}});
+return <><Nav/><main className="container section"><h1>Leady</h1><table className="table"><thead><tr><th>Kontakt</th><th>Vozidlo</th><th>Stav</th></tr></thead><tbody>{leads.map(l=><tr key={l.id}><td>{l.name}<div className="meta">{l.email}</div></td><td>{l.vehicle?`${l.vehicle.brand} ${l.vehicle.model}`:"-"}</td><td>{l.status}</td></tr>)}</tbody></table></main></>}

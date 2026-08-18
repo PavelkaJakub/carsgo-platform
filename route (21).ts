@@ -1,0 +1,5 @@
+import {prisma} from "@/lib/prisma";import {requirePartner} from "@/lib/auth";import {audit} from "@/lib/audit";
+export async function POST(request:Request){let s;try{s=await requirePartner()}catch{return new Response("Unauthorized",{status:401})}if(!s.companyId)return new Response("Missing company",{status:400});const f=await request.formData();
+const price=Number(f.get("price")||0);const v=await prisma.vehicle.create({data:{companyId:s.companyId,brand:String(f.get("brand")),model:String(f.get("model")),trim:String(f.get("trim")||""),year:Number(f.get("year")||0)||null,mileage:Number(f.get("mileage")||0)||null,price,fuelType:String(f.get("fuelType")||""),transmission:String(f.get("transmission")||""),description:String(f.get("description")||""),status:"ACTIVE",sourceType:"MANUAL"}});
+await prisma.vehiclePriceHistory.create({data:{vehicleId:v.id,oldPrice:null,newPrice:price,source:"MANUAL"}});const imageUrl=String(f.get("imageUrl")||"");if(imageUrl)await prisma.vehicleImage.create({data:{vehicleId:v.id,url:imageUrl,isPrimary:true}});
+await audit(s.userId,"VEHICLE_CREATED","Vehicle",v.id);return Response.redirect(new URL("/partner/vehicles",request.url),303)}

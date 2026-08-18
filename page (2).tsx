@@ -1,0 +1,2 @@
+import Nav from "@/components/Nav";
+export default async function Login(){return <><Nav/><main className="login panel"><h1>Přihlášení</h1><form className="form" action="/api/auth/login" method="post"><input name="email" type="email" placeholder="E-mail" required/><input name="password" type="password" placeholder="Heslo" required/><button className="btn">Přihlásit</button></form><p><a href="/forgot-password">Zapomenuté heslo?</a></p><p className="meta">Partner: partner@carsgo.local / carsgo123 • Admin: admin@carsgo.local / admin123</p></main></>}
